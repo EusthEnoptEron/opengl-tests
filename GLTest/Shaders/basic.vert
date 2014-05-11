@@ -2,8 +2,11 @@
 
 in vec2 position;
 in vec3 color;
+in vec2 texcoord;
 
 out vec3 Color;
+out vec2 Texcoord;
+
 
 uniform float time;
 
@@ -14,6 +17,7 @@ float rand(vec2 co) {
 
 void main()
 {
+	Texcoord = texcoord;
 	Color = color;
 	float r = rand(position * time) - 0.5;
     gl_Position = vec4(position + vec2(0.01 * r, 0.01 * r), 0.0, 1.0);

@@ -5,6 +5,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
+using System.Drawing.Imaging;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -21,6 +22,7 @@ namespace GLTest
         private List<int> shaders = new List<int>();
         private List<int> programs = new List<int>();
 
+        int timeUniform = 0;
 
         float elapsed = 0;
 
@@ -35,6 +37,7 @@ namespace GLTest
             this.WindowBorder = OpenTK.WindowBorder.Fixed;
             PrepareScene();
             LoadShaders();
+            timeUniform = GL.GetUniformLocation(programs[0], "time");
 
         }
 
@@ -49,12 +52,11 @@ namespace GLTest
         protected override void OnUpdateFrame(FrameEventArgs e)
         {
             elapsed += (float)e.Time;
-            GL.Uniform1(GL.GetUniformLocation(programs[0], "time"), elapsed);
+            GL.Uniform1(timeUniform, elapsed);
         }
 
         protected override void OnRenderFrame(FrameEventArgs e)
         {
-
             GL.ClearColor(Color.Black);
             GL.Clear(ClearBufferMask.ColorBufferBit);
 
@@ -68,10 +70,10 @@ namespace GLTest
         private void PrepareScene()
         {
             float[] vertices = new float[] {
-                -0.5f,  0.5f, 1.0f, 0.0f, 0.0f, // Top-left
-                 0.5f,  0.5f, 0.0f, 1.0f, 0.0f, // Top-right
-                 0.5f, -0.5f, 0.0f, 0.0f, 1.0f, // Bottom-right
-                -0.5f, -0.5f, 1.0f, 1.0f, 1.0f  // Bottom-left
+                -0.5f,  0.5f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, // Top-left
+                 0.5f,  0.5f, 0.0f, 1.0f, 0.0f, 2.0f, 0.0f, // Top-right
+                 0.5f, -0.5f, 0.0f, 0.0f, 1.0f, 2.0f, 2.0f, // Bottom-right
+                -0.5f, -0.5f, 1.0f, 1.0f, 1.0f, 0.0f, 2.0f  // Bottom-left
             };
 
             uint[] elements = new uint[] { 0, 1, 2,    2, 3, 0 };
@@ -87,12 +89,36 @@ namespace GLTest
             GL.BindBuffer(BufferTarget.ElementArrayBuffer, ebo);
             GL.BufferData(BufferTarget.ElementArrayBuffer, (IntPtr)(elements.Length * sizeof(uint)), elements, BufferUsageHint.StaticDraw);
 
+            int tex = GL.GenTexture();
+            GL.BindTexture(TextureTarget.Texture2D, tex);
+
+            LoadPicture("Assets/info.png");
+
+            // x,y,z => s,t,r
+            GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapS, (int)TextureWrapMode.Repeat);
+            GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapT, (int)TextureWrapMode.Repeat);
+
+            // How to resize the texture
+            GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (int)TextureMinFilter.NearestMipmapLinear);
+            GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int)TextureMinFilter.NearestMipmapLinear);
+            // Create mipmap (pre-rendered thumb)
+            GL.GenerateMipmap(GenerateMipmapTarget.Texture2D);
 
             vbos.Add(vbo);
             vbos.Add(ebo);
             vaos.Add(vao);
         }
-        
+
+        private void LoadPicture(string resName)
+        {
+            using (Bitmap img = new Bitmap(GetResourceStream(resName)))
+            {
+                BitmapData data = img.LockBits(new Rectangle(0, 0, img.Width, img.Height), ImageLockMode.ReadOnly, System.Drawing.Imaging.PixelFormat.Format32bppArgb);
+                GL.TexImage2D(TextureTarget.Texture2D, 0, PixelInternalFormat.Rgba, img.Width, img.Height, 0, OpenTK.Graphics.OpenGL.PixelFormat.Bgra, PixelType.UnsignedByte, data.Scan0);
+                img.UnlockBits(data);
+            }
+        }
+
         private void LoadShaders()
         {
 
@@ -129,15 +155,19 @@ namespace GLTest
 
             int posAttr = GL.GetAttribLocation(shaderProgram, "position");
             int colAttr = GL.GetAttribLocation(shaderProgram, "color");
+            int texAttr = GL.GetAttribLocation(shaderProgram, "texcoord");
             GL.EnableVertexAttribArray(posAttr);
             // Tell the program how to interpret the input values (2 values of the type float will be interpreted as a vertex)
             // Stride: bytes between each position in the array
             // Offset: ...offset
             // IMPORTANT: this will also store the current VBO!
-            GL.VertexAttribPointer(posAttr, 2, VertexAttribPointerType.Float, false, 5 * sizeof(float), 0);
+            GL.VertexAttribPointer(posAttr, 2, VertexAttribPointerType.Float, false, 7 * sizeof(float), 0);
 
             GL.EnableVertexAttribArray(colAttr);
-            GL.VertexAttribPointer(GL.GetAttribLocation(shaderProgram, "color"), 3, VertexAttribPointerType.Float, false, 5 * sizeof(float), 2 * sizeof(float));
+            GL.VertexAttribPointer(colAttr, 3, VertexAttribPointerType.Float, false, 7 * sizeof(float), 2 * sizeof(float));
+
+            GL.EnableVertexAttribArray(texAttr);
+            GL.VertexAttribPointer(texAttr, 2, VertexAttribPointerType.Float, false, 7 * sizeof(float), 5 * sizeof(float));
 
             shaders.Add(vertexShader);
             shaders.Add(fragmentShader);
@@ -149,6 +179,7 @@ namespace GLTest
             Console.Write(log3);
             Console.WriteLine("---------------------------");
         }
+
 
         private string LoadShader(string name)
         {
