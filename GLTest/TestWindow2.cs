@@ -49,8 +49,7 @@ namespace GLTest
         protected override void OnUpdateFrame(FrameEventArgs e)
         {
             elapsed += (float)e.Time;
-            float red = (float)(Math.Sin(elapsed * Math.PI) + 1) / 2f;
-            GL.Uniform4( GL.GetUniformLocation(programs[0], "color"), red,0f,0f,1f);
+            GL.Uniform1(GL.GetUniformLocation(programs[0], "time"), elapsed);
         }
 
         protected override void OnRenderFrame(FrameEventArgs e)
@@ -59,7 +58,8 @@ namespace GLTest
             GL.ClearColor(Color.Black);
             GL.Clear(ClearBufferMask.ColorBufferBit);
 
-            GL.DrawArrays(PrimitiveType.Triangles, 0, 3);
+            //GL.DrawArrays(PrimitiveType.Triangles, 0, 6);
+            GL.DrawElements(PrimitiveType.Triangles, 6, DrawElementsType.UnsignedInt, 0);
          
             SwapBuffers();
         }
@@ -68,10 +68,13 @@ namespace GLTest
         private void PrepareScene()
         {
             float[] vertices = new float[] {
-                0.0f,  0.5f, // Vertex 1 (X, Y)
-                 0.5f, -0.5f, // Vertex 2 (X, Y)
-                -0.5f, -0.5f  // Vertex 3 (X, Y)
+                -0.5f,  0.5f, 1.0f, 0.0f, 0.0f, // Top-left
+                 0.5f,  0.5f, 0.0f, 1.0f, 0.0f, // Top-right
+                 0.5f, -0.5f, 0.0f, 0.0f, 1.0f, // Bottom-right
+                -0.5f, -0.5f, 1.0f, 1.0f, 1.0f  // Bottom-left
             };
+
+            uint[] elements = new uint[] { 0, 1, 2,    2, 3, 0 };
    
             int vao = GL.GenVertexArray();
             GL.BindVertexArray(vao);
@@ -80,12 +83,19 @@ namespace GLTest
             GL.BindBuffer(BufferTarget.ArrayBuffer, vbo);
             GL.BufferData(BufferTarget.ArrayBuffer, (IntPtr)(vertices.Length * sizeof(float)), vertices, BufferUsageHint.StaticDraw);
 
+            int ebo = GL.GenBuffer();
+            GL.BindBuffer(BufferTarget.ElementArrayBuffer, ebo);
+            GL.BufferData(BufferTarget.ElementArrayBuffer, (IntPtr)(elements.Length * sizeof(uint)), elements, BufferUsageHint.StaticDraw);
+
+
             vbos.Add(vbo);
+            vbos.Add(ebo);
             vaos.Add(vao);
         }
         
         private void LoadShaders()
         {
+
             // Create vert and frag shaders
             int vertexShader = GL.CreateShader(ShaderType.VertexShader);
             int fragmentShader = GL.CreateShader(ShaderType.FragmentShader);
@@ -108,7 +118,7 @@ namespace GLTest
             GL.AttachShader(shaderProgram, fragmentShader);
 
             // Unnecessary
-            GL.BindAttribLocation(shaderProgram, 0, "position");
+            //GL.BindAttribLocation(shaderProgram, 0, "position");
             //GL.BindFragDataLocation(shaderProgram, 0, "outColor");
 
             // Link and user program
@@ -117,12 +127,17 @@ namespace GLTest
             GL.UseProgram(shaderProgram);
 
 
-            GL.EnableVertexAttribArray(0);
+            int posAttr = GL.GetAttribLocation(shaderProgram, "position");
+            int colAttr = GL.GetAttribLocation(shaderProgram, "color");
+            GL.EnableVertexAttribArray(posAttr);
             // Tell the program how to interpret the input values (2 values of the type float will be interpreted as a vertex)
             // Stride: bytes between each position in the array
             // Offset: ...offset
             // IMPORTANT: this will also store the current VBO!
-            GL.VertexAttribPointer(0, 2, VertexAttribPointerType.Float, false, 0, 0);
+            GL.VertexAttribPointer(posAttr, 2, VertexAttribPointerType.Float, false, 5 * sizeof(float), 0);
+
+            GL.EnableVertexAttribArray(colAttr);
+            GL.VertexAttribPointer(GL.GetAttribLocation(shaderProgram, "color"), 3, VertexAttribPointerType.Float, false, 5 * sizeof(float), 2 * sizeof(float));
 
             shaders.Add(vertexShader);
             shaders.Add(fragmentShader);

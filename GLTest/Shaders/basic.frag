@@ -1,9 +1,10 @@
 ﻿#version 150
 
 out vec4 outColor;
-uniform vec4 color;
+in vec3 Color;
+uniform float time;
 
 void main()
 {
-    outColor = color;
+    outColor = vec4(Color, 1.0);
 }
