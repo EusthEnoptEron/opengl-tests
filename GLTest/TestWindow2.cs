@@ -35,8 +35,8 @@ namespace GLTest
         {
             VSync = VSyncMode.On;
             this.WindowBorder = OpenTK.WindowBorder.Fixed;
-            PrepareScene();
             LoadShaders();
+            PrepareScene();
             timeUniform = GL.GetUniformLocation(programs[0], "time");
 
         }
@@ -89,34 +89,61 @@ namespace GLTest
             GL.BindBuffer(BufferTarget.ElementArrayBuffer, ebo);
             GL.BufferData(BufferTarget.ElementArrayBuffer, (IntPtr)(elements.Length * sizeof(uint)), elements, BufferUsageHint.StaticDraw);
 
-            int tex = GL.GenTexture();
-            GL.BindTexture(TextureTarget.Texture2D, tex);
 
-            LoadPicture("Assets/info.png");
+            int posAttr = GL.GetAttribLocation(programs[0], "position");
+            int colAttr = GL.GetAttribLocation(programs[0], "color");
+            int texAttr = GL.GetAttribLocation(programs[0], "texcoord");
+            GL.EnableVertexAttribArray(posAttr);
+            // Tell the program how to interpret the input values (2 values of the type float will be interpreted as a vertex)
+            // Stride: bytes between each position in the array
+            // Offset: ...offset
+            // IMPORTANT: this will also store the current VBO!
+            GL.VertexAttribPointer(posAttr, 2, VertexAttribPointerType.Float, false, 7 * sizeof(float), 0);
 
-            // x,y,z => s,t,r
-            GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapS, (int)TextureWrapMode.Repeat);
-            GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapT, (int)TextureWrapMode.Repeat);
+            GL.EnableVertexAttribArray(colAttr);
+            GL.VertexAttribPointer(colAttr, 3, VertexAttribPointerType.Float, false, 7 * sizeof(float), 2 * sizeof(float));
 
-            // How to resize the texture
-            GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (int)TextureMinFilter.NearestMipmapLinear);
-            GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int)TextureMinFilter.NearestMipmapLinear);
-            // Create mipmap (pre-rendered thumb)
-            GL.GenerateMipmap(GenerateMipmapTarget.Texture2D);
+            GL.EnableVertexAttribArray(texAttr);
+            GL.VertexAttribPointer(texAttr, 2, VertexAttribPointerType.Float, false, 7 * sizeof(float), 5 * sizeof(float));
+
+
+            LoadPicture("Assets/info.png", 0, TextureUnit.Texture0, "tex1");
+            LoadPicture("Assets/play.png", 1, TextureUnit.Texture1, "tex2");
+
+            
 
             vbos.Add(vbo);
             vbos.Add(ebo);
             vaos.Add(vao);
         }
 
-        private void LoadPicture(string resName)
+        private void LoadPicture(string resName, int number, TextureUnit unit, string uniformName)
         {
+            int tex = GL.GenTexture();
+            GL.ActiveTexture(unit);
+            GL.BindTexture(TextureTarget.Texture2D, tex);
+            
             using (Bitmap img = new Bitmap(GetResourceStream(resName)))
             {
                 BitmapData data = img.LockBits(new Rectangle(0, 0, img.Width, img.Height), ImageLockMode.ReadOnly, System.Drawing.Imaging.PixelFormat.Format32bppArgb);
                 GL.TexImage2D(TextureTarget.Texture2D, 0, PixelInternalFormat.Rgba, img.Width, img.Height, 0, OpenTK.Graphics.OpenGL.PixelFormat.Bgra, PixelType.UnsignedByte, data.Scan0);
                 img.UnlockBits(data);
             }
+
+
+            // x,y,z => s,t,r
+            GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapS, (int)TextureWrapMode.Repeat);
+            GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapT, (int)TextureWrapMode.Repeat);
+            
+            // How to resize the texture
+            GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (int)TextureMinFilter.NearestMipmapLinear);
+            GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int)TextureMagFilter.Linear);
+           
+            // Create mipmap (pre-rendered thumb)
+            GL.GenerateMipmap(GenerateMipmapTarget.Texture2D);
+
+
+            GL.Uniform1(GL.GetUniformLocation(programs[0], uniformName), number);
         }
 
         private void LoadShaders()
@@ -151,23 +178,6 @@ namespace GLTest
             GL.LinkProgram(shaderProgram);
             var log3 = GL.GetProgramInfoLog(shaderProgram);
             GL.UseProgram(shaderProgram);
-
-
-            int posAttr = GL.GetAttribLocation(shaderProgram, "position");
-            int colAttr = GL.GetAttribLocation(shaderProgram, "color");
-            int texAttr = GL.GetAttribLocation(shaderProgram, "texcoord");
-            GL.EnableVertexAttribArray(posAttr);
-            // Tell the program how to interpret the input values (2 values of the type float will be interpreted as a vertex)
-            // Stride: bytes between each position in the array
-            // Offset: ...offset
-            // IMPORTANT: this will also store the current VBO!
-            GL.VertexAttribPointer(posAttr, 2, VertexAttribPointerType.Float, false, 7 * sizeof(float), 0);
-
-            GL.EnableVertexAttribArray(colAttr);
-            GL.VertexAttribPointer(colAttr, 3, VertexAttribPointerType.Float, false, 7 * sizeof(float), 2 * sizeof(float));
-
-            GL.EnableVertexAttribArray(texAttr);
-            GL.VertexAttribPointer(texAttr, 2, VertexAttribPointerType.Float, false, 7 * sizeof(float), 5 * sizeof(float));
 
             shaders.Add(vertexShader);
             shaders.Add(fragmentShader);
