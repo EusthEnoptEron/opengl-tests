@@ -9,6 +9,9 @@ out vec2 Texcoord;
 
 
 uniform float time;
+uniform mat4 model;
+uniform mat4 view;
+uniform mat4 projection;
 
 
 float rand(vec2 co) {
@@ -20,7 +23,8 @@ void main()
 	Texcoord = texcoord;
 	Color = color;
 	float r = rand(position * time) - 0.5;
-    gl_Position = vec4(position + vec2(0.01 * r, 0.01 * r), 0.0, 1.0);
+
+    gl_Position = projection * view * model * vec4(position + vec2(0.01 * r, 0.01 * r), (sin(3 * time + (position.x - position.y)) + cos(2 * time + (position.x + position.y))) / 2 , 1.0);
 }
 
 

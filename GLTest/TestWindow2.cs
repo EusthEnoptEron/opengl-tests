@@ -1,5 +1,6 @@
 ﻿using OpenTK;
 using OpenTK.Graphics.OpenGL;
+using OpenTK.Input;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -25,6 +26,9 @@ namespace GLTest
         int timeUniform = 0;
 
         float elapsed = 0;
+        private Matrix4 ModelMatrix = Matrix4.Identity;
+        private Matrix4 ViewMatrix = Matrix4.Identity;
+        private Matrix4 ProjectionMatrix = Matrix4.Identity;
 
         public TestWindow2()
             : base(800, 600)
@@ -37,6 +41,8 @@ namespace GLTest
             this.WindowBorder = OpenTK.WindowBorder.Fixed;
             LoadShaders();
             PrepareScene();
+            InitMatrices();
+
             timeUniform = GL.GetUniformLocation(programs[0], "time");
 
         }
@@ -51,8 +57,16 @@ namespace GLTest
 
         protected override void OnUpdateFrame(FrameEventArgs e)
         {
-            elapsed += (float)e.Time;
+            
+            float multiplier = 1;
+            if (Keyboard[Key.Space]) multiplier = 3;
+
             GL.Uniform1(timeUniform, elapsed);
+
+            ModelMatrix = Matrix4.CreateRotationZ( elapsed );
+            GL.UniformMatrix4(GL.GetUniformLocation(programs[0], "model"), false, ref ModelMatrix);
+
+            elapsed += multiplier * (float)e.Time;
         }
 
         protected override void OnRenderFrame(FrameEventArgs e)
@@ -110,11 +124,20 @@ namespace GLTest
             LoadPicture("Assets/info.png", 0, TextureUnit.Texture0, "tex1");
             LoadPicture("Assets/play.png", 1, TextureUnit.Texture1, "tex2");
 
-            
-
             vbos.Add(vbo);
             vbos.Add(ebo);
             vaos.Add(vao);
+        }
+
+        private void InitMatrices() {
+            GL.UniformMatrix4(GL.GetUniformLocation(programs[0], "model"), false, ref ModelMatrix);
+
+            ViewMatrix = Matrix4.LookAt(new Vector3(1.2f, 1.2f, 1.2f), new Vector3(0, 0, 0), new Vector3(0, 0, 1));
+            GL.UniformMatrix4(GL.GetUniformLocation(programs[0], "view"), false, ref ViewMatrix);
+
+            ProjectionMatrix = Matrix4.CreatePerspectiveFieldOfView(3.41f / 4, (float)Width / Height, 1.0f, 10.0f);
+            GL.UniformMatrix4(GL.GetUniformLocation(programs[0], "projection"), false, ref ProjectionMatrix);
+
         }
 
         private void LoadPicture(string resName, int number, TextureUnit unit, string uniformName)
