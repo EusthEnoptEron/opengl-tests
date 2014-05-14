@@ -1,6 +1,6 @@
 ﻿#version 150
 
-in vec2 position;
+in vec3 position;
 in vec3 color;
 in vec2 texcoord;
 
@@ -22,9 +22,9 @@ void main()
 {
 	Texcoord = texcoord;
 	Color = color;
-	float r = rand(position * time) - 0.5;
+	float r = rand(vec2(position) * time) - 0.5;
 
-    gl_Position = projection * view * model * vec4(position + vec2(0.01 * r, 0.01 * r), (sin(3 * time + (position.x - position.y)) + cos(2 * time + (position.x + position.y))) / 2 , 1.0);
+    gl_Position = projection * view * model * vec4(position + vec3(0.01 * r, 0.01 * r, 0.01 * r), 1.0);
 }
 
 

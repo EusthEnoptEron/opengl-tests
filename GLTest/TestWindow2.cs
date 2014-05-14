@@ -1,4 +1,5 @@
 ﻿using OpenTK;
+using OpenTK.Graphics;
 using OpenTK.Graphics.OpenGL;
 using OpenTK.Input;
 using System;
@@ -31,7 +32,7 @@ namespace GLTest
         private Matrix4 ProjectionMatrix = Matrix4.Identity;
 
         public TestWindow2()
-            : base(800, 600)
+            : base(800, 600, new OpenTK.Graphics.GraphicsMode(ColorFormat.Empty, 24, 8, 4))
         {
         }
 
@@ -39,10 +40,14 @@ namespace GLTest
         {
             VSync = VSyncMode.On;
             this.WindowBorder = OpenTK.WindowBorder.Fixed;
+            GL.Enable(EnableCap.DepthTest);
+            GL.Enable(EnableCap.Blend);
+            GL.BlendFunc(BlendingFactorSrc.SrcAlpha, BlendingFactorDest.OneMinusSrcAlpha);
+
             LoadShaders();
             PrepareScene();
             InitMatrices();
-
+            
             timeUniform = GL.GetUniformLocation(programs[0], "time");
 
         }
@@ -63,20 +68,59 @@ namespace GLTest
 
             GL.Uniform1(timeUniform, elapsed);
 
-            ModelMatrix = Matrix4.CreateRotationZ( elapsed );
-            GL.UniformMatrix4(GL.GetUniformLocation(programs[0], "model"), false, ref ModelMatrix);
-
             elapsed += multiplier * (float)e.Time;
         }
 
         protected override void OnRenderFrame(FrameEventArgs e)
         {
-            GL.ClearColor(Color.Black);
-            GL.Clear(ClearBufferMask.ColorBufferBit);
+            GL.ClearColor(Color.White);
+            GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
 
-            //GL.DrawArrays(PrimitiveType.Triangles, 0, 6);
-            GL.DrawElements(PrimitiveType.Triangles, 6, DrawElementsType.UnsignedInt, 0);
-         
+            int modelUni = GL.GetUniformLocation(programs[0], "model");
+            int opacity =  GL.GetUniformLocation(programs[0], "opacity");
+
+            // Draw cube
+
+            ModelMatrix = Matrix4.CreateRotationZ(elapsed);
+            GL.UniformMatrix4(modelUni, false, ref ModelMatrix);
+            GL.Uniform1(opacity, 1.0f);
+
+            GL.DrawArrays(PrimitiveType.Triangles, 0, 36);
+
+            GL.Enable(EnableCap.StencilTest);
+            {
+                // Draw floor
+                ModelMatrix = Matrix4.Identity;
+                GL.UniformMatrix4(modelUni, false, ref ModelMatrix);
+                GL.DepthMask(false);
+                GL.StencilFunc(StencilFunction.Always, 1, 0xFF); // Write 1 to all drawn pixels
+                GL.StencilOp(StencilOp.Keep, StencilOp.Keep, StencilOp.Replace);
+                GL.StencilMask(0xFF);
+                GL.Clear(ClearBufferMask.StencilBufferBit);
+
+                GL.DrawArrays(PrimitiveType.Triangles, 36, 6);
+                GL.DepthMask(true);
+
+                // Draw reflection
+                GL.UniformMatrix4(modelUni, false, ref ModelMatrix);
+                ModelMatrix = Matrix4.CreateRotationZ(elapsed);
+                var transform = Matrix4.Mult(Matrix4.CreateScale(1, 1, -1), Matrix4.CreateTranslation(0, 0, -1));
+                //var transform = Matrix4.CreateScale(1, 1, -1);
+                Matrix4.Mult(ref transform, ref ModelMatrix, out ModelMatrix);
+
+                GL.UniformMatrix4(modelUni, false, ref ModelMatrix);
+                GL.Uniform1(opacity, .5f);
+                GL.StencilFunc(StencilFunction.Equal, 1, 0xFF);
+                GL.StencilMask(0x00);
+                GL.DepthMask(true);
+
+                GL.DrawArrays(PrimitiveType.Triangles, 0, 36);
+
+            }
+            GL.Disable(EnableCap.StencilTest);
+
+            //GL.DrawElements(PrimitiveType.Triangles, 6, DrawElementsType.UnsignedInt, 0);
+
             SwapBuffers();
         }
 
@@ -84,10 +128,56 @@ namespace GLTest
         private void PrepareScene()
         {
             float[] vertices = new float[] {
-                -0.5f,  0.5f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, // Top-left
-                 0.5f,  0.5f, 0.0f, 1.0f, 0.0f, 2.0f, 0.0f, // Top-right
-                 0.5f, -0.5f, 0.0f, 0.0f, 1.0f, 2.0f, 2.0f, // Bottom-right
-                -0.5f, -0.5f, 1.0f, 1.0f, 1.0f, 0.0f, 2.0f  // Bottom-left
+                //X     Y      Z     R      G    B     U     V
+                -0.5f, -0.5f, -0.5f, 1.0f, 1.0f, 0.0f, 0.0f, 0.0f,
+                 0.5f, -0.5f, -0.5f, 1.0f, 0.0f, 1.0f, 1.0f, 0.0f,
+                 0.5f,  0.5f, -0.5f, 1.0f, 0.0f, 0.0f, 1.0f, 1.0f,
+                 0.5f,  0.5f, -0.5f, 0.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+                -0.5f,  0.5f, -0.5f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f,
+                -0.5f, -0.5f, -0.5f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f,
+
+                -0.5f, -0.5f,  0.5f, 1.0f, 1.0f, 0.0f, 0.0f, 0.0f,
+                 0.5f, -0.5f,  0.5f, 1.0f, 0.0f, 1.0f, 1.0f, 0.0f,
+                 0.5f,  0.5f,  0.5f, 1.0f, 0.0f, 0.0f, 1.0f, 1.0f,
+                 0.5f,  0.5f,  0.5f, 0.0f, 1.0f, 1.0f, 1.0f, 1.0f,
+                -0.5f,  0.5f,  0.5f, 0.0f, 0.0f, 1.0f, 0.0f, 1.0f,
+                -0.5f, -0.5f,  0.5f, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f,
+
+                -0.5f,  0.5f,  0.5f, 1.0f, 1.0f, 0.0f, 1.0f, 0.0f,
+                -0.5f,  0.5f, -0.5f, 1.0f, 0.0f, 1.0f, 1.0f, 1.0f,
+                -0.5f, -0.5f, -0.5f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f,
+                -0.5f, -0.5f, -0.5f, 0.0f, 1.0f, 1.0f, 0.0f, 1.0f,
+                -0.5f, -0.5f,  0.5f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f,
+                -0.5f,  0.5f,  0.5f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f,
+
+                 0.5f,  0.5f,  0.5f, 1.0f, 1.0f, 0.0f, 1.0f, 0.0f,
+                 0.5f,  0.5f, -0.5f, 1.0f, 0.0f, 1.0f, 1.0f, 1.0f,
+                 0.5f, -0.5f, -0.5f, 1.0f, 0.0f, 0.0f, 0.0f, 1.0f,
+                 0.5f, -0.5f, -0.5f, 0.0f, 1.0f, 1.0f, 0.0f, 1.0f,
+                 0.5f, -0.5f,  0.5f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f,
+                 0.5f,  0.5f,  0.5f, 0.0f, 1.0f, 0.0f, 1.0f, 0.0f,
+
+                -0.5f, -0.5f, -0.5f, 1.0f, 1.0f, 0.0f, 0.0f, 1.0f,
+                 0.5f, -0.5f, -0.5f, 1.0f, 0.0f, 1.0f, 1.0f, 1.0f,
+                 0.5f, -0.5f,  0.5f, 1.0f, 0.0f, 0.0f, 1.0f, 0.0f,
+                 0.5f, -0.5f,  0.5f, 0.0f, 1.0f, 1.0f, 1.0f, 0.0f,
+                -0.5f, -0.5f,  0.5f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f,
+                -0.5f, -0.5f, -0.5f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f,
+
+                -0.5f,  0.5f, -0.5f, 1.0f, 1.0f, 0.0f, 0.0f, 1.0f,
+                 0.5f,  0.5f, -0.5f, 1.0f, 0.0f, 1.0f, 1.0f, 1.0f,
+                 0.5f,  0.5f,  0.5f, 1.0f, 0.0f, 0.0f, 1.0f, 0.0f,
+                 0.5f,  0.5f,  0.5f, 0.0f, 1.0f, 1.0f, 1.0f, 0.0f,
+                -0.5f,  0.5f,  0.5f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f,
+                -0.5f,  0.5f, -0.5f, 0.0f, 1.0f, 0.0f, 0.0f, 1.0f,
+
+
+                -1.0f, -1.0f, -0.5f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f,
+                 1.0f, -1.0f, -0.5f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f,
+                 1.0f,  1.0f, -0.5f, 0.0f, 0.0f, 0.0f, 1.0f, 1.0f,
+                 1.0f,  1.0f, -0.5f, 0.0f, 0.0f, 0.0f, 1.0f, 1.0f,
+                -1.0f,  1.0f, -0.5f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f,
+                -1.0f, -1.0f, -0.5f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f
             };
 
             uint[] elements = new uint[] { 0, 1, 2,    2, 3, 0 };
@@ -112,13 +202,13 @@ namespace GLTest
             // Stride: bytes between each position in the array
             // Offset: ...offset
             // IMPORTANT: this will also store the current VBO!
-            GL.VertexAttribPointer(posAttr, 2, VertexAttribPointerType.Float, false, 7 * sizeof(float), 0);
+            GL.VertexAttribPointer(posAttr, 3, VertexAttribPointerType.Float, false, 8 * sizeof(float), 0);
 
             GL.EnableVertexAttribArray(colAttr);
-            GL.VertexAttribPointer(colAttr, 3, VertexAttribPointerType.Float, false, 7 * sizeof(float), 2 * sizeof(float));
+            GL.VertexAttribPointer(colAttr, 3, VertexAttribPointerType.Float, false, 8 * sizeof(float), 3 * sizeof(float));
 
             GL.EnableVertexAttribArray(texAttr);
-            GL.VertexAttribPointer(texAttr, 2, VertexAttribPointerType.Float, false, 7 * sizeof(float), 5 * sizeof(float));
+            GL.VertexAttribPointer(texAttr, 2, VertexAttribPointerType.Float, false, 8 * sizeof(float), 6 * sizeof(float));
 
 
             LoadPicture("Assets/info.png", 0, TextureUnit.Texture0, "tex1");
@@ -132,7 +222,7 @@ namespace GLTest
         private void InitMatrices() {
             GL.UniformMatrix4(GL.GetUniformLocation(programs[0], "model"), false, ref ModelMatrix);
 
-            ViewMatrix = Matrix4.LookAt(new Vector3(1.2f, 1.2f, 1.2f), new Vector3(0, 0, 0), new Vector3(0, 0, 1));
+            ViewMatrix = Matrix4.LookAt(new Vector3(2.6f, 2.6f, 1.6f), new Vector3(0, 0, 0), new Vector3(0, 0, 1));
             GL.UniformMatrix4(GL.GetUniformLocation(programs[0], "view"), false, ref ViewMatrix);
 
             ProjectionMatrix = Matrix4.CreatePerspectiveFieldOfView(3.41f / 4, (float)Width / Height, 1.0f, 10.0f);
