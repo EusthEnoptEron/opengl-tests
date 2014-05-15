@@ -59,6 +59,8 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />
+    <Resource Include="Shaders\2d.frag" />
+    <Resource Include="Shaders\2d.vert" />
     <Resource Include="Shaders\basic.frag" />
     <Resource Include="Shaders\basic.vert" />
   </ItemGroup>
