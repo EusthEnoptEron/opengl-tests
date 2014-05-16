@@ -115,12 +115,14 @@ namespace GLTest
             float multiplier = 1;
             if (Keyboard[Key.Space]) multiplier = 3;
 
+            GL.UseProgram(programs[0]);
             GL.Uniform1(timeUniform, elapsed);
 
             elapsed += multiplier * (float)e.Time;
         }
         protected void RenderCube()
         {
+            GL.UseProgram(programs[0]);
             GL.ActiveTexture(TextureUnit.Texture0);
             GL.BindTexture(TextureTarget.Texture2D, textures[0]);
             GL.ActiveTexture(TextureUnit.Texture1);
@@ -132,7 +134,6 @@ namespace GLTest
             int opacity = GL.GetUniformLocation(programs[0], "opacity");
 
             GL.BindVertexArray(vaos[0]);
-            GL.UseProgram(programs[0]);
             // Draw cube
 
             ModelMatrix = Matrix4.CreateRotationZ(elapsed);
@@ -176,11 +177,13 @@ namespace GLTest
 
         protected void RenderRect()
         {
+            GL.UseProgram(programs[1]);
+
             GL.ActiveTexture(TextureUnit.Texture0);
             GL.BindTexture(TextureTarget.Texture2D, ColorBuffer);
 
             GL.Disable(EnableCap.DepthTest);
-            GL.UseProgram(programs[1]);
+           
             GL.BindVertexArray(vaos[1]);
             GL.DrawArrays(PrimitiveType.Triangles, 0, 6);
         }
