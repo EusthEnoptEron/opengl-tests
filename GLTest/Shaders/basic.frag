@@ -19,6 +19,7 @@ void main()
 		coords.x += sin(2*time + coords.y * 10) * 0.1;
 	}
 
+
 	vec4 texCol1 = texture(tex1, coords);
 	vec4 texCol2 = texture(tex2, coords);
 	vec4 color   = vec4(Color, 1.0);

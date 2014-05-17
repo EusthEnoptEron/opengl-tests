@@ -34,6 +34,10 @@ namespace GLTest
         private int Framebuffer;
         private int ColorBuffer;
 
+        ShaderProgram program2;
+
+        GLObject Cube;
+
         public TestWindow2()
             : base(800, 600, new OpenTK.Graphics.GraphicsMode(ColorFormat.Empty, 24, 8, 4))
         {
@@ -47,22 +51,28 @@ namespace GLTest
             GL.Enable(EnableCap.Blend);
             GL.BlendFunc(BlendingFactorSrc.SrcAlpha, BlendingFactorDest.OneMinusSrcAlpha);
 
-            LoadShaders("Shaders/basic.vert", "Shaders/basic.frag");
-            LoadShaders("Shaders/2d.vert", "Shaders/2d.frag");
 
-            PrepareScene(programs[0]);
+            program2 = new ShaderProgram();
+            program2.AddShader(new Shader(ShaderType.VertexShader, LoadShader("Shaders/2d.vert")));
+            program2.AddShader(new Shader(ShaderType.FragmentShader, LoadShader("Shaders/2d.frag")));
+
+            if (!program2.Compile())
+            {
+                Console.WriteLine(program2.Log);
+            }
+
+            Cube = PrepareCube();
 
             InitMatrices();
             LoadFrameBuffer();
 
-            Prepare2DScene(programs[1]);
-            
-            timeUniform = GL.GetUniformLocation(programs[0], "time");
+            Prepare2DScene(program2.ID);
 
         }
 
         private void Prepare2DScene(int program)
         {
+            GL.UseProgram(program);
             float[] vertices = new float[] {
                 //X     Y    
                 -0.5f, -0.5f, 0, 0,
@@ -77,12 +87,11 @@ namespace GLTest
             int vao = GL.GenVertexArray();
             GL.BindVertexArray(vao);
 
-           
-
             int vbo = GL.GenBuffer();
             GL.BindBuffer(BufferTarget.ArrayBuffer, vbo);
             GL.BufferData(BufferTarget.ArrayBuffer, (IntPtr)(vertices.Length * sizeof(float)), vertices, BufferUsageHint.StaticDraw);
 
+            ErrorCode error4 = GL.GetError();
             int posAttr = GL.GetAttribLocation(program, "position");
             int texAttr = GL.GetAttribLocation(program, "texcoord");
 
@@ -95,8 +104,10 @@ namespace GLTest
             GL.VertexAttribPointer(posAttr, 2, VertexAttribPointerType.Float, false, sizeof(float) * 4, 0);
             GL.VertexAttribPointer(texAttr, 2, VertexAttribPointerType.Float, false, sizeof(float) * 4, 2 * sizeof(float));
 
+
             GL.Uniform1(GL.GetUniformLocation(program, "texFramebuffer"), 0);
 
+            ErrorCode error7 = GL.GetError();
             vbos.Add(vbo);
             vaos.Add(vao);
         }
@@ -107,6 +118,9 @@ namespace GLTest
             foreach (int i in shaders) GL.DeleteShader(i);
             foreach (int i in vbos) GL.DeleteBuffer(i);
             foreach (int i in vaos) GL.DeleteVertexArray(i);
+
+            Cube.Dispose();
+            program2.Dispose();
         }
 
         protected override void OnUpdateFrame(FrameEventArgs e)
@@ -115,30 +129,20 @@ namespace GLTest
             float multiplier = 1;
             if (Keyboard[Key.Space]) multiplier = 3;
 
-            GL.UseProgram(programs[0]);
-            GL.Uniform1(timeUniform, elapsed);
+            GL.Uniform1(Cube.Program.GetUniformLocation("time"), elapsed);
 
             elapsed += multiplier * (float)e.Time;
         }
         protected void RenderCube()
         {
-            GL.UseProgram(programs[0]);
-            GL.ActiveTexture(TextureUnit.Texture0);
-            GL.BindTexture(TextureTarget.Texture2D, textures[0]);
-            GL.ActiveTexture(TextureUnit.Texture1);
-            GL.BindTexture(TextureTarget.Texture2D, textures[1]);
+
+            Cube.Use();
 
             GL.Enable(EnableCap.DepthTest);
-
-            int modelUni = GL.GetUniformLocation(programs[0], "model");
-            int opacity = GL.GetUniformLocation(programs[0], "opacity");
-
-            GL.BindVertexArray(vaos[0]);
-            // Draw cube
-
             ModelMatrix = Matrix4.CreateRotationZ(elapsed);
-            GL.UniformMatrix4(modelUni, false, ref ModelMatrix);
-            GL.Uniform1(opacity, 1.0f);
+            
+            Cube.Program.UniformMatrix4("model", false, ref ModelMatrix);
+            Cube.Program.Uniform1("opacity", 1.0f);
 
             GL.DrawArrays(PrimitiveType.Triangles, 0, 36);
 
@@ -146,7 +150,7 @@ namespace GLTest
             {
                 // Draw floor
                 ModelMatrix = Matrix4.Identity;
-                GL.UniformMatrix4(modelUni, false, ref ModelMatrix);
+                Cube.Program.UniformMatrix4("model", false, ref ModelMatrix);
                 GL.DepthMask(false);
                 GL.StencilFunc(StencilFunction.Always, 1, 0xFF); // Write 1 to all drawn pixels
                 GL.StencilOp(StencilOp.Keep, StencilOp.Keep, StencilOp.Replace);
@@ -157,14 +161,14 @@ namespace GLTest
                 GL.DepthMask(true);
 
                 // Draw reflection
-                GL.UniformMatrix4(modelUni, false, ref ModelMatrix);
                 ModelMatrix = Matrix4.CreateRotationZ(elapsed);
                 var transform = Matrix4.Mult(Matrix4.CreateScale(1, 1, -1), Matrix4.CreateTranslation(0, 0, -1));
-                //var transform = Matrix4.CreateScale(1, 1, -1);
+
                 Matrix4.Mult(ref transform, ref ModelMatrix, out ModelMatrix);
 
-                GL.UniformMatrix4(modelUni, false, ref ModelMatrix);
-                GL.Uniform1(opacity, .5f);
+                Cube.Program.UniformMatrix4("model", false, ref ModelMatrix);
+                Cube.Program.Uniform1("opacity", .5f);
+                
                 GL.StencilFunc(StencilFunction.Equal, 1, 0xFF);
                 GL.StencilMask(0x00);
                 GL.DepthMask(true);
@@ -177,14 +181,14 @@ namespace GLTest
 
         protected void RenderRect()
         {
-            GL.UseProgram(programs[1]);
+            GL.UseProgram(program2.ID);
 
             GL.ActiveTexture(TextureUnit.Texture0);
             GL.BindTexture(TextureTarget.Texture2D, ColorBuffer);
 
             GL.Disable(EnableCap.DepthTest);
            
-            GL.BindVertexArray(vaos[1]);
+            GL.BindVertexArray(vaos[0]);
             GL.DrawArrays(PrimitiveType.Triangles, 0, 6);
         }
 
@@ -202,7 +206,7 @@ namespace GLTest
             GL.ClearColor(Color.White);
             GL.Clear(ClearBufferMask.ColorBufferBit);
             RenderRect();
-            
+
 
             //GL.DrawElements(PrimitiveType.Triangles, 6, DrawElementsType.UnsignedInt, 0);
 
@@ -235,7 +239,7 @@ namespace GLTest
             GL.BindFramebuffer(FramebufferTarget.Framebuffer, 0);
             
         }
-        private void PrepareScene(int program)
+        private GLObject PrepareCube()
         {
             float[] vertices = new float[] {
                 //X     Y      Z     R      G    B     U     V
@@ -290,131 +294,57 @@ namespace GLTest
                 -1.0f, -1.0f, -0.5f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f
             };
 
-            uint[] elements = new uint[] { 0, 1, 2,    2, 3, 0 };
-   
-            int vao = GL.GenVertexArray();
-            GL.BindVertexArray(vao);
-
-            GL.UseProgram(program);
-
-            int vbo = GL.GenBuffer();
-            GL.BindBuffer(BufferTarget.ArrayBuffer, vbo);
-            GL.BufferData(BufferTarget.ArrayBuffer, (IntPtr)(vertices.Length * sizeof(float)), vertices, BufferUsageHint.StaticDraw);
-
-            int ebo = GL.GenBuffer();
-            GL.BindBuffer(BufferTarget.ElementArrayBuffer, ebo);
-            GL.BufferData(BufferTarget.ElementArrayBuffer, (IntPtr)(elements.Length * sizeof(uint)), elements, BufferUsageHint.StaticDraw);
+            // Make shader
+            var program1 = new ShaderProgram();
+            program1.AddShader(new Shader(ShaderType.VertexShader, LoadShader("Shaders/basic.vert")));
+            program1.AddShader(new Shader(ShaderType.FragmentShader, LoadShader("Shaders/basic.frag")));
 
 
-            int posAttr = GL.GetAttribLocation(program, "position");
-            int colAttr = GL.GetAttribLocation(program, "color");
-            int texAttr = GL.GetAttribLocation(program, "texcoord");
-            GL.EnableVertexAttribArray(posAttr);
-            // Tell the program how to interpret the input values (2 values of the type float will be interpreted as a vertex)
-            // Stride: bytes between each position in the array
-            // Offset: ...offset
-            // IMPORTANT: this will also store the current VBO!
-            GL.VertexAttribPointer(posAttr, 3, VertexAttribPointerType.Float, false, 8 * sizeof(float), 0);
 
-            GL.EnableVertexAttribArray(colAttr);
-            GL.VertexAttribPointer(colAttr, 3, VertexAttribPointerType.Float, false, 8 * sizeof(float), 3 * sizeof(float));
-
-            GL.EnableVertexAttribArray(texAttr);
-            GL.VertexAttribPointer(texAttr, 2, VertexAttribPointerType.Float, false, 8 * sizeof(float), 6 * sizeof(float));
-
-
-            textures.Add(LoadPicture("Assets/info.png", 0, TextureUnit.Texture0, "tex1"));
-            textures.Add(LoadPicture("Assets/play.png", 1, TextureUnit.Texture1, "tex2"));
-
-            vbos.Add(vbo);
-            vbos.Add(ebo);
-            vaos.Add(vao);
-        }
-
-        private void InitMatrices() {
-            GL.UniformMatrix4(GL.GetUniformLocation(programs[0], "model"), false, ref ModelMatrix);
-
-            ViewMatrix = Matrix4.LookAt(new Vector3(2.6f, 2.6f, 1.6f), new Vector3(0, 0, 0), new Vector3(0, 0, 1));
-            GL.UniformMatrix4(GL.GetUniformLocation(programs[0], "view"), false, ref ViewMatrix);
-
-            ProjectionMatrix = Matrix4.CreatePerspectiveFieldOfView(3.41f / 4, (float)Width / Height, 1.0f, 10.0f);
-            GL.UniformMatrix4(GL.GetUniformLocation(programs[0], "projection"), false, ref ProjectionMatrix);
-
-        }
-
-        private int LoadPicture(string resName, int number, TextureUnit unit, string uniformName)
-        {
-            int tex = GL.GenTexture();
-            GL.ActiveTexture(unit);
-            GL.BindTexture(TextureTarget.Texture2D, tex);
+            // Make textures
+            var tex1 = new Texture(new Bitmap(GetResourceStream("Assets/info.png")), TextureTarget.Texture2D, PixelInternalFormat.Rgba, 0);
             
-            using (Bitmap img = new Bitmap(GetResourceStream(resName)))
-            {
-                BitmapData data = img.LockBits(new Rectangle(0, 0, img.Width, img.Height), ImageLockMode.ReadOnly, System.Drawing.Imaging.PixelFormat.Format32bppArgb);
-                GL.TexImage2D(TextureTarget.Texture2D, 0, PixelInternalFormat.Rgba, img.Width, img.Height, 0, OpenTK.Graphics.OpenGL.PixelFormat.Bgra, PixelType.UnsignedByte, data.Scan0);
-                img.UnlockBits(data);
-            }
+            tex1.TexParameter(TextureParameterName.TextureWrapS, (int)TextureWrapMode.Repeat);
+            tex1.TexParameter(TextureParameterName.TextureWrapT, (int)TextureWrapMode.Repeat);
+            tex1.TexParameter(TextureParameterName.TextureMinFilter, (int)TextureMinFilter.NearestMipmapLinear);
+            tex1.TexParameter(TextureParameterName.TextureMagFilter, (int)TextureMagFilter.Linear);
 
+            // Create mipmap (pre-rendered thumb)
+            GL.GenerateMipmap(GenerateMipmapTarget.Texture2D);
 
-            // x,y,z => s,t,r
-            GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapS, (int)TextureWrapMode.Repeat);
-            GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapT, (int)TextureWrapMode.Repeat);
-            
-            // How to resize the texture
-            GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (int)TextureMinFilter.NearestMipmapLinear);
-            GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int)TextureMagFilter.Linear);
-           
+            var tex2 = new Texture(new Bitmap(GetResourceStream("Assets/play.png")), TextureTarget.Texture2D, PixelInternalFormat.Rgba, 1);
+    
+            tex2.TexParameter(TextureParameterName.TextureWrapS, (int)TextureWrapMode.Repeat);
+            tex2.TexParameter(TextureParameterName.TextureWrapT, (int)TextureWrapMode.Repeat);
+            tex2.TexParameter(TextureParameterName.TextureMinFilter, (int)TextureMinFilter.NearestMipmapLinear);
+            tex2.TexParameter(TextureParameterName.TextureMagFilter, (int)TextureMagFilter.Linear);
+
             // Create mipmap (pre-rendered thumb)
             GL.GenerateMipmap(GenerateMipmapTarget.Texture2D);
 
 
-            GL.Uniform1(GL.GetUniformLocation(programs[0], uniformName), number);
 
-            return tex;
+            List<PartitionRule> rules = new List<PartitionRule>()
+            {
+                new PartitionRule("position", 0, 3),
+                new PartitionRule("color", 3, 3),
+                new PartitionRule("texcoord", 6, 2)
+            };
+
+            GLObject obj = new GLObject(vertices, rules, program1);
+            obj.AddTexture("tex1", tex1);
+            obj.AddTexture("tex2", tex2);
+
+            return obj;
         }
 
-        private void LoadShaders(string vertexPath, string fragmentPath)
-        {
-
-            // Create vert and frag shaders
-            int vertexShader = GL.CreateShader(ShaderType.VertexShader);
-            int fragmentShader = GL.CreateShader(ShaderType.FragmentShader);
-
-            // Load them
-            GL.ShaderSource(vertexShader, LoadShader(vertexPath));
-            GL.ShaderSource(fragmentShader, LoadShader(fragmentPath));
-
-            // Compile them
-            GL.CompileShader(vertexShader);
-            GL.CompileShader(fragmentShader);
-
-            var log1 = GL.GetShaderInfoLog(vertexShader);
-            var log2 = GL.GetShaderInfoLog(fragmentShader);
-
-
-            // Add them to a program
-            int shaderProgram = GL.CreateProgram();
-            GL.AttachShader(shaderProgram, vertexShader);
-            GL.AttachShader(shaderProgram, fragmentShader);
-
-            // Unnecessary
-            //GL.BindAttribLocation(shaderProgram, 0, "position");
-            //GL.BindFragDataLocation(shaderProgram, 0, "outColor");
-
-            // Link and user program
-            GL.LinkProgram(shaderProgram);
-            var log3 = GL.GetProgramInfoLog(shaderProgram);
-            GL.UseProgram(shaderProgram);
-
-            shaders.Add(vertexShader);
-            shaders.Add(fragmentShader);
-            programs.Add(shaderProgram);
-
-            Console.WriteLine("Compiled shaders. Log:\n");
-            Console.Write(log1);
-            Console.Write(log2);
-            Console.Write(log3);
-            Console.WriteLine("---------------------------");
+        private void InitMatrices() {
+            ViewMatrix = Matrix4.LookAt(new Vector3(2.6f, 2.6f, 1.6f), new Vector3(0, 0, 0), new Vector3(0, 0, 1));
+            ProjectionMatrix = Matrix4.CreatePerspectiveFieldOfView(3.41f / 4, (float)Width / Height, 1.0f, 10.0f);
+            
+            Cube.Program.UniformMatrix4("model", false, ref ModelMatrix);
+            Cube.Program.UniformMatrix4("view", false, ref ViewMatrix);
+            Cube.Program.UniformMatrix4("projection", false, ref ProjectionMatrix);
         }
 
 
