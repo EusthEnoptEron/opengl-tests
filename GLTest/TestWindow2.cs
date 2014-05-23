@@ -34,9 +34,9 @@ namespace GLTest
         private int Framebuffer;
         private int ColorBuffer;
 
-        ShaderProgram program2;
 
         GLObject Cube;
+        GLObject Rect;
 
         public TestWindow2()
             : base(800, 600, new OpenTK.Graphics.GraphicsMode(ColorFormat.Empty, 24, 8, 4))
@@ -49,67 +49,17 @@ namespace GLTest
             this.WindowBorder = OpenTK.WindowBorder.Fixed;
             GL.Enable(EnableCap.DepthTest);
             GL.Enable(EnableCap.Blend);
+            GL.Enable(EnableCap.Multisample);
             GL.BlendFunc(BlendingFactorSrc.SrcAlpha, BlendingFactorDest.OneMinusSrcAlpha);
 
 
-            program2 = new ShaderProgram();
-            program2.AddShader(new Shader(ShaderType.VertexShader, LoadShader("Shaders/2d.vert")));
-            program2.AddShader(new Shader(ShaderType.FragmentShader, LoadShader("Shaders/2d.frag")));
-
-            if (!program2.Compile())
-            {
-                Console.WriteLine(program2.Log);
-            }
-
             Cube = PrepareCube();
+            Rect = PrepareRect();
 
             InitMatrices();
             LoadFrameBuffer();
 
-            Prepare2DScene(program2.ID);
 
-        }
-
-        private void Prepare2DScene(int program)
-        {
-            GL.UseProgram(program);
-            float[] vertices = new float[] {
-                //X     Y    
-                -0.5f, -0.5f, 0, 0,
-                 0.5f, -0.5f, 1, 0,
-                 0.5f,  0.5f, 1, 1,
-
-                 0.5f,  0.5f, 1, 1,
-                -0.5f,  0.5f, 0, 1,
-                -0.5f, -0.5f, 0, 0
-            };
-
-            int vao = GL.GenVertexArray();
-            GL.BindVertexArray(vao);
-
-            int vbo = GL.GenBuffer();
-            GL.BindBuffer(BufferTarget.ArrayBuffer, vbo);
-            GL.BufferData(BufferTarget.ArrayBuffer, (IntPtr)(vertices.Length * sizeof(float)), vertices, BufferUsageHint.StaticDraw);
-
-            ErrorCode error4 = GL.GetError();
-            int posAttr = GL.GetAttribLocation(program, "position");
-            int texAttr = GL.GetAttribLocation(program, "texcoord");
-
-            GL.EnableVertexAttribArray(posAttr);
-            GL.EnableVertexAttribArray(texAttr);
-            // Tell the program how to interpret the input values (2 values of the type float will be interpreted as a vertex)
-            // Stride: bytes between each position in the array
-            // Offset: ...offset
-            // IMPORTANT: this will also store the current VBO!
-            GL.VertexAttribPointer(posAttr, 2, VertexAttribPointerType.Float, false, sizeof(float) * 4, 0);
-            GL.VertexAttribPointer(texAttr, 2, VertexAttribPointerType.Float, false, sizeof(float) * 4, 2 * sizeof(float));
-
-
-            GL.Uniform1(GL.GetUniformLocation(program, "texFramebuffer"), 0);
-
-            ErrorCode error7 = GL.GetError();
-            vbos.Add(vbo);
-            vaos.Add(vao);
         }
 
         protected override void OnClosing(System.ComponentModel.CancelEventArgs e)
@@ -120,7 +70,6 @@ namespace GLTest
             foreach (int i in vaos) GL.DeleteVertexArray(i);
 
             Cube.Dispose();
-            program2.Dispose();
         }
 
         protected override void OnUpdateFrame(FrameEventArgs e)
@@ -129,10 +78,36 @@ namespace GLTest
             float multiplier = 1;
             if (Keyboard[Key.Space]) multiplier = 3;
 
-            GL.Uniform1(Cube.Program.GetUniformLocation("time"), elapsed);
+            Cube.Program.Uniform1("time", elapsed);
 
             elapsed += multiplier * (float)e.Time;
         }
+
+        protected override void OnRenderFrame(FrameEventArgs e)
+        {
+
+            GL.BindFramebuffer(FramebufferTarget.Framebuffer, Framebuffer);
+            GL.ClearColor(Color.White);
+            GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
+
+            RenderCube();
+
+            GL.BindFramebuffer(FramebufferTarget.ReadFramebuffer, Framebuffer);
+            GL.BindFramebuffer(FramebufferTarget.DrawFramebuffer, 0);
+
+            GL.BlitFramebuffer(0, 0, 800, 600, 0, 0, 800, 600, ClearBufferMask.ColorBufferBit, BlitFramebufferFilter.Linear);
+            /*
+            GL.BindFramebuffer(FramebufferTarget.Framebuffer, 0);
+            GL.ClearColor(Color.White);
+            GL.Clear(ClearBufferMask.ColorBufferBit);
+            RenderRect();
+            */
+
+            //GL.DrawElements(PrimitiveType.Triangles, 6, DrawElementsType.UnsignedInt, 0);
+
+            SwapBuffers();
+        }
+
         protected void RenderCube()
         {
 
@@ -181,37 +156,11 @@ namespace GLTest
 
         protected void RenderRect()
         {
-            GL.UseProgram(program2.ID);
-
-            GL.ActiveTexture(TextureUnit.Texture0);
-            GL.BindTexture(TextureTarget.Texture2D, ColorBuffer);
-
-            GL.Disable(EnableCap.DepthTest);
-           
-            GL.BindVertexArray(vaos[0]);
+            Rect.Use();
+            GL.Disable(EnableCap.DepthTest);           
             GL.DrawArrays(PrimitiveType.Triangles, 0, 6);
         }
 
-        protected override void OnRenderFrame(FrameEventArgs e)
-        {
-
-            GL.BindFramebuffer(FramebufferTarget.Framebuffer, Framebuffer);
-            GL.ClearColor(Color.White);
-            GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
-
-            RenderCube();
-
-
-            GL.BindFramebuffer(FramebufferTarget.Framebuffer, 0);
-            GL.ClearColor(Color.White);
-            GL.Clear(ClearBufferMask.ColorBufferBit);
-            RenderRect();
-
-
-            //GL.DrawElements(PrimitiveType.Triangles, 6, DrawElementsType.UnsignedInt, 0);
-
-            SwapBuffers();
-        }
 
         private void LoadFrameBuffer()
         {
@@ -239,6 +188,44 @@ namespace GLTest
             GL.BindFramebuffer(FramebufferTarget.Framebuffer, 0);
             
         }
+
+
+        private GLObject PrepareRect()
+        {
+
+            float[] vertices = new float[] {
+                //X     Y    
+                -1f, -1f, 0, 0,
+                 1f, -1f, 1, 0,
+                 1f,  1f, 1, 1,
+
+                 1f,  1f, 1, 1,
+                -1f,  1f, 0, 1,
+                -1f, -1f, 0, 0
+            };
+
+            var program = new ShaderProgram();
+            program.AddShader(new Shader(ShaderType.VertexShader, LoadShader("Shaders/2d.vert")));
+            program.AddShader(new Shader(ShaderType.FragmentShader, LoadShader("Shaders/2d.frag")));
+
+
+
+            var obj = new GLObject(vertices, new List<PartitionRule>() {
+                new PartitionRule("position", 0, 2),
+                new PartitionRule("texcoord", 2, 2)
+            }, program);
+
+            obj.Program.Uniform1("texFramebuffer", 0);
+
+            obj.Activate += (sender) => { 
+                GL.ActiveTexture(TextureUnit.Texture0); 
+                GL.BindTexture(TextureTarget.Texture2D, ColorBuffer); 
+            };
+
+            return obj;
+        }
+
+
         private GLObject PrepareCube()
         {
             float[] vertices = new float[] {

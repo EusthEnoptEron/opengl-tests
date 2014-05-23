@@ -58,5 +58,6 @@ vec4 sobel() {
 
 
 void main() {
-	color = blur()- sobel() + vec4(0,0,0,1);
+	//color = blur()- sobel() + vec4(0,0,0,1);
+	color = texture(texFramebuffer, vt_texcoord) -sobel() + vec4(0,0,0,1);
 }

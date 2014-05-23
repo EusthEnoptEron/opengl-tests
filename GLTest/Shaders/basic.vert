@@ -22,7 +22,7 @@ void main()
 {
 	Texcoord = texcoord;
 	Color = color;
-	float r = rand(vec2(position) * time) - 0.5;
+	float r = 0;// rand(vec2(position) * time) - 0.5;
 
     gl_Position = projection * view * model * vec4(position + vec3(0.01 * r, 0.01 * r, 0.01 * r), 1.0);
 }
