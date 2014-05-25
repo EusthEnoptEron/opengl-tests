@@ -121,15 +121,28 @@ namespace GLTest
 
         public int GetUniformLocation(string param)
         {
-            if(!params_.ContainsKey(param))
-                params_[param] = GL.GetUniformLocation(ID, param);
+            if (!params_.ContainsKey(param))
+            {
+                int loc = GL.GetUniformLocation(ID, param);
+                if (loc >= 0)
+                    params_[param] = loc;
+                else
+                    throw new Exception("Halp! Uniform not found: " + param);
+            }
             return params_[param];
         }
 
         public int GetAttribLocation(string param)
         {
             if (!params_.ContainsKey(param))
-                params_[param] = GL.GetAttribLocation(ID, param);
+            {
+                int loc = GL.GetAttribLocation(ID, param);
+                if (loc >= 0)
+                    params_[param] = loc;
+                else
+                    throw new Exception("Halp! Attrib not found: " + param);
+
+            }
             return params_[param];
         }
 

@@ -18,6 +18,7 @@ namespace GLTest
         public Quaternion Quaternion { get; private set; }
         private Vector3 Translation { get; set; }
         private Vector3 Target { get; set; }
+        public float Scale = 1f;
 
         //public Matrix4 Modelview
         //{
@@ -46,6 +47,15 @@ namespace GLTest
 
             //_matrix = Matrix4.CreateFromQuaternion(Quaternion);
             Target = target - Eye;
+        }
+
+        public Matrix4 GetMatrix()
+        {
+            Matrix4 m = Matrix4.LookAt(Eye, Eye + Target, Up);
+            Matrix4 s = Matrix4.CreateScale(Scale);
+            Matrix4.Mult(ref s, ref m, out m);
+
+            return m;
         }
 
         public void Apply()

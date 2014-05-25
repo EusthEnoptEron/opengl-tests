@@ -134,7 +134,6 @@ namespace GLTest
         //
         //   @params:
         //     [length: pname] For the scalar commands, specifies the value of pname.
-        [CLSCompliant(false)]
         public void TexParameter(TextureTarget target, TextureParameterName pname, int[] @args)
         {
             Activate();
@@ -152,7 +151,6 @@ namespace GLTest
         //
         //   @params:
         //     [length: pname]
-        [CLSCompliant(false)]
         public void TexParameterI(TextureTarget target, TextureParameterName pname, int[] @args)
         {
             Activate();
@@ -170,7 +168,6 @@ namespace GLTest
         //
         //   @params:
         //     [length: pname]
-        [CLSCompliant(false)]
         public void TexParameterI(TextureTarget target, TextureParameterName pname, ref int @args)
         {
             Activate();
@@ -187,7 +184,6 @@ namespace GLTest
         //
         //   @params:
         //     [length: pname]
-        [CLSCompliant(false)]
         public void TexParameterI(TextureTarget target, TextureParameterName pname, ref uint @params)
         {
             Activate();

@@ -57,6 +57,7 @@ namespace GLTest
             Program = program;
 
             program.Compile();
+            GL.UseProgram(program.ID);
 
             VAO = GL.GenVertexArray();
             Bind();
@@ -67,6 +68,7 @@ namespace GLTest
 
             
             int stride = rules.Max((el) => { return el.Offset + el.Length; }) * size;
+            Length = values.Length / (stride / size);
             foreach (var rule in rules)
             {
                 var attr = Program.GetAttribLocation(rule.AttributeName);
@@ -112,6 +114,12 @@ namespace GLTest
 
             Program.Dispose();
             foreach (var tex in textures_) tex.Dispose();
+        }
+
+        public int Length
+        {
+            get;
+            private set;
         }
     }
 }

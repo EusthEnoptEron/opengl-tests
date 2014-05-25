@@ -12,7 +12,7 @@ namespace GLTest
         [STAThread]
         static void Main(string[] args)
         {
-            using (var game = new TestWindow2())
+            using (var game = new TestWindow3())
             {
                 game.Run(60);
             }
