@@ -86,6 +86,7 @@ namespace GLTest
         protected override void OnRenderFrame(FrameEventArgs e)
         {
 
+            //                                                     V POINT!
             GL.BindFramebuffer(FramebufferTarget.Framebuffer, Framebuffer);
             GL.ClearColor(Color.White);
             GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
@@ -96,12 +97,13 @@ namespace GLTest
             GL.BindFramebuffer(FramebufferTarget.DrawFramebuffer, 0);
 
             GL.BlitFramebuffer(0, 0, 800, 600, 0, 0, 800, 600, ClearBufferMask.ColorBufferBit, BlitFramebufferFilter.Linear);
-            /*
+            
+
             GL.BindFramebuffer(FramebufferTarget.Framebuffer, 0);
             GL.ClearColor(Color.White);
             GL.Clear(ClearBufferMask.ColorBufferBit);
             RenderRect();
-            */
+            
 
             //GL.DrawElements(PrimitiveType.Triangles, 6, DrawElementsType.UnsignedInt, 0);
 
@@ -207,7 +209,6 @@ namespace GLTest
             var program = new ShaderProgram();
             program.AddShader(new Shader(ShaderType.VertexShader, LoadShader("Shaders/2d.vert")));
             program.AddShader(new Shader(ShaderType.FragmentShader, LoadShader("Shaders/2d.frag")));
-
 
 
             var obj = new GLObject(vertices, new List<PartitionRule>() {

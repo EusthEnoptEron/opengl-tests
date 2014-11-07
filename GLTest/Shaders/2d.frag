@@ -6,9 +6,9 @@ out vec4 color;
 uniform sampler2D texFramebuffer;
 
 const float[] mask = float[] 
-	(1, 4, 1,
-	 4, 6, 4,
-	 1, 4, 1);
+	(1.0, 4.0, 1.0,
+	 4.0, 6.0, 4.0,
+	 1.0, 4.0, 1.0);
 
 const float blurSizeH = 1.0 / 300.0;
 const float blurSizeV = 1.0 / 200.0;

@@ -93,6 +93,7 @@ namespace GLTest
                     if (!shader.Compile())
                     {
                         Log = shader.Log;
+                        throw new Exception("Shader not compiled!");
                         return false;
                     }
 
