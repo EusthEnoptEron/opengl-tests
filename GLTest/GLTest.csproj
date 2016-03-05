@@ -50,6 +50,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="AsyncTextureTestWindow.cs" />
     <Compile Include="Camera.cs" />
     <Compile Include="Cube.cs" />
     <Compile Include="GLObject.cs" />
@@ -66,6 +67,8 @@
   <ItemGroup>
     <None Include="App.config" />
     <None Include="packages.config" />
+    <Resource Include="Shaders\simple.frag" />
+    <Resource Include="Shaders\simple.vert" />
     <Resource Include="Shaders\picture.vert" />
     <Resource Include="Shaders\picture.frag" />
     <Resource Include="Shaders\2d.frag" />

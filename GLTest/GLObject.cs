@@ -107,6 +107,18 @@ namespace GLTest
             GL.Uniform1(Program.GetUniformLocation(attribName), tex.Number);
         }
 
+        /// <summary>
+        /// Clears all textures (and disposes them!)
+        /// </summary>
+        public void ClearTextures()
+        {
+            foreach (var t in textures_)
+            {
+                t.Dispose();
+            }
+            textures_.Clear();
+        }
+
         public void Dispose()
         {
             GL.DeleteVertexArray(VAO);
